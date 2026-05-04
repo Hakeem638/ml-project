@@ -104,6 +104,9 @@ pip install -r requirements.txt
 
 ### Load the pretrained model
 
+---
+
+```
 import joblib
 
 model = joblib.load('models/fraud_model.pkl')
@@ -126,6 +129,7 @@ def predict_transaction(input_data, threshold=0.9):
     return prediction, prob
 
 ```
+---
 
 ## 📉 Key Insight
 
@@ -136,6 +140,8 @@ Fraud detection is a highly imbalanced classification problem where:
 - Threshold tuning significantly affects model behavior  
 
 This project demonstrates how adjusting the decision threshold improves the balance between detecting fraud and reducing false positives.
+
+---
 
 ## 👤 Author
 
