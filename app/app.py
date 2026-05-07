@@ -1,83 +1,106 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import joblib
+import sys
+import os
 
-# Load model
-model = joblib.load("../models/fraud_model_final.pkl")
-scaler = joblib.load("../models/scaler_final.pkl")
+# allow app to access src folder
+sys.path.append(os.path.abspath(".."))
 
-st.set_page_config(page_title="Fraud Detection", layout="wide")
+from src.code.predict import predict_transactions
 
+# ==============================
+# PAGE CONFIG
+# ==============================
+st.set_page_config(page_title="Fraud Detection System", layout="wide")
+
+# ==============================
+# TITLE
+# ==============================
 st.title("💳 Credit Card Fraud Detection System")
-st.markdown("Upload transaction data (CSV, Excel, TXT) to detect fraud.")
 
-# File uploader
-uploaded_file = st.file_uploader("Upload your dataset", type=["csv", "xlsx", "txt"])
+st.markdown(
+    """
+    Upload transaction datasets and detect potentially fraudulent transactions
+    using a trained Machine Learning model.
+    """
+)
 
+# ==============================
+# FILE UPLOADER
+# ==============================
+uploaded_file = st.file_uploader("Upload Dataset", type=["csv", "xlsx", "txt"])
 
-def predict(df, threshold=0.9):
-
-    # remove target column if it exists
-    df = df.drop(columns=["Class"], errors="ignore")
-
-    # ensure correct feature order
-    if hasattr(model, "feature_names_in_"):
-        df = df.reindex(columns=model.feature_names_in_, fill_value=0)
-
-    # scale
-    df_scaled = scaler.transform(df)
-
-    # predict probabilities
-    probs = model.predict_proba(df_scaled)[:, 1]
-    preds = (probs >= threshold).astype(int)
-
-    df = df.copy()
-    df["Fraud_Probability"] = probs
-    df["Prediction"] = preds
-
-    return df
-
-
+# ==============================
+# PROCESS FILE
+# ==============================
 if uploaded_file is not None:
-    # Detect file type and read
     try:
+        # ==============================
+        # READ FILE
+        # ==============================
         if uploaded_file.name.endswith(".csv"):
             df = pd.read_csv(uploaded_file)
+
         elif uploaded_file.name.endswith(".xlsx"):
             df = pd.read_excel(uploaded_file)
+
         elif uploaded_file.name.endswith(".txt"):
             df = pd.read_csv(uploaded_file, delimiter="\t")
+
         else:
             st.error("Unsupported file format")
             st.stop()
 
         st.success("✅ File uploaded successfully!")
 
-        # Show data preview
-        st.subheader("📊 Data Preview")
+        # ==============================
+        # DATA PREVIEW
+        # ==============================
+        st.subheader("📊 Dataset Preview")
+
         st.dataframe(df.head())
 
-        # Predict button
+        # ==============================
+        # RUN PREDICTION
+        # ==============================
         if st.button("🚀 Run Fraud Detection"):
-            result_df = predict(df)
+            with st.spinner("Analyzing transactions..."):
+                result_df = predict_transactions(df)
 
+            st.success("Fraud detection completed!")
+
+            # ==============================
+            # RESULTS
+            # ==============================
             st.subheader("🔍 Prediction Results")
+
             st.dataframe(result_df.head())
 
-            # Summary
+            # ==============================
+            # SUMMARY
+            # ==============================
             fraud_count = result_df["Prediction"].sum()
-            total = len(result_df)
+
+            total_transactions = len(result_df)
 
             st.subheader("📈 Summary")
-            st.write(f"Total Transactions: {total}")
-            st.write(f"Fraudulent Transactions: {fraud_count}")
 
-            # Download results
+            col1, col2 = st.columns(2)
+
+            col1.metric("Total Transactions", total_transactions)
+
+            col2.metric("Fraudulent Transactions", fraud_count)
+
+            # ==============================
+            # DOWNLOAD RESULTS
+            # ==============================
             csv = result_df.to_csv(index=False).encode("utf-8")
 
             st.download_button(
-                "⬇️ Download Results", csv, "fraud_predictions.csv", "text/csv"
+                label="⬇️ Download Results",
+                data=csv,
+                file_name="fraud_predictions.csv",
+                mime="text/csv",
             )
 
     except Exception as e:
